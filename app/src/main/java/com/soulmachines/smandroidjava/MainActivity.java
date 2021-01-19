@@ -142,8 +142,8 @@ public class MainActivity extends AppCompatActivity {
         if(scene != null) {
             if(!scene.getPersonas().isEmpty()) {
                 Persona persona = scene.getPersonas().get(0);
-                showToastMessage("Changing camera view to the $direction");
-                Log.i(TAG, "CameraView: $direction");
+                showToastMessage("Changing camera view to the " + direction.toString());
+                Log.i(TAG, "CameraView: " + direction.toString());
                 persona.animateToNamedCameraWithOrbitPan(getNamedCameraAnimationParam(direction));
             }
         }
@@ -250,8 +250,8 @@ public class MainActivity extends AppCompatActivity {
         new JWTTokenProvider(this).getJWTToken(
                 (JWTSource.OnSuccess) jwtToken -> {
                     String connectionUrl = preferences.getString(ConfigurationFragment.CONNECTION_URL, "");
-                    Log.i(TAG, "Connecting to:  `${connectionUrl}`");
-                    Log.d(TAG, "Using JWT Token `${jwtToken}`");
+                    Log.i(TAG, "Connecting to:  `" + connectionUrl + "`");
+                    Log.d(TAG, "Using JWT Token `" + jwtToken + "`");
                     //using the obtained JWT token, proceed with connecting the Scene
                     connectScene(connectionUrl, jwtToken);
 
@@ -405,7 +405,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void onDisconnectedUI(String reason) {
-        Toast.makeText(this, "Disconnected ( ${reason})", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Disconnected ( " + reason + ")", Toast.LENGTH_SHORT).show();
         new Handler().postDelayed(() -> finish(), 100);
     }
 

@@ -179,8 +179,6 @@ scene.addSceneMessageListener(new SceneMessageListener() {
 });
 ```
 
-***Please review the provided documentation for further information***
-
 
  # Persona API
  A **Persona** instance is the api to use to interact with a *Digital Human*. After a successful connection to a scene and the initial 'state' is established, a **Persona** instance can be obtained from the **Scene#getPersonas()** api.
@@ -193,8 +191,8 @@ An example of usages of the Persona API (see MainActivity#changeCameraView for a
 // make the persona look to the left
 if(!scene.getPersonas().isEmpty()) {
     Persona persona = scene.getPersonas().get(0);
-    showToastMessage("Changing camera view to the $direction");
-    Log.i(TAG, "CameraView: $direction");
+    showToastMessage("Changing camera view to the " + direction.toString());
+    Log.i(TAG, "CameraView: " + direction.toString());
     persona.animateToNamedCameraWithOrbitPan(getNamedCameraAnimationParam(direction));
 }
 ```
