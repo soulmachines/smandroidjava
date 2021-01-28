@@ -118,9 +118,9 @@ Here's an example of a subscription to the scene connection result:
 
 ```
 scene.connect(connectionUrl, null, jwtToken, RetryOptions.getDEFAULT()).subscribe(
-                new Completion<Session.SessionInfo>() {
+                new Completion<SessionInfo>() {
                     @Override
-                    public void onSuccess(Session.SessionInfo sessionInfo) {
+                    public void onSuccess(SessionInfo sessionInfo) {
                         runOnUiThread(() -> onConnectedUI());
                     }
                     @Override

@@ -18,7 +18,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.databinding.DataBindingUtil;
 
-import com.soulmachines.android.smsdk.core.Session;
+import com.soulmachines.android.smsdk.core.SessionInfo;
 import com.soulmachines.android.smsdk.core.UserMedia;
 import com.soulmachines.android.smsdk.core.async.Completion;
 import com.soulmachines.android.smsdk.core.async.CompletionError;
@@ -236,7 +236,7 @@ public class MainActivity extends AppCompatActivity {
 
     //endregion Setup Activity UI
 
-    //region Scene/Session Connection Usage Example
+    //region Scene Connection Usage Example
     private void connect() {
 
         if(!hasRequiredConfiguration()) {
@@ -267,9 +267,9 @@ public class MainActivity extends AppCompatActivity {
     private void connectScene(final String connectionUrl, final String jwtToken) {
         if(scene != null) {
             scene.connect(connectionUrl, null, jwtToken, RetryOptions.getDEFAULT()).subscribe(
-                new Completion<Session.SessionInfo>() {
+                new Completion<SessionInfo>() {
                     @Override
-                    public void onSuccess(Session.SessionInfo sessionInfo) {
+                    public void onSuccess(SessionInfo sessionInfo) {
                         runOnUiThread(() -> onConnectedUI());
                     }
                     @Override
@@ -304,7 +304,7 @@ public class MainActivity extends AppCompatActivity {
             scene.disconnect();
         }
     }
-    //endregion Scene/Session Connection Usage Example
+    //endregion Scene Connection Usage Example
 
     // region Go Fullscreen
     private void goFullScreen() {
