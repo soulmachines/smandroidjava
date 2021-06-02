@@ -195,8 +195,14 @@ scene.addSceneMessageListener(new SceneMessageListener() {
 
  # Persona API
  A **Persona** instance is the api to use to interact with a *Digital Human*. After a successful connection to a scene and the initial 'state' is established, a **Persona** instance can be obtained from the **Scene#getPersonas()** api.
+ 
+There is also **PersonaReadyListener** you can add to the **Scene** to get notified of when the **Persona** becomes available rather than poll and wait for the 'state' event message.
 
-Here 's a documentation of what methods are available for the Persona and what they can do: ***TODO: Link to the class documentation of the Persona***
+```
+scene.addPersonaReadyListener(p -> {
+    persona = p;
+});
+```
 
 An example of usages of the Persona API (see MainActivity#changeCameraView for an example):
 

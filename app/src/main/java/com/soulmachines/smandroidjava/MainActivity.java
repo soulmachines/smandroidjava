@@ -25,6 +25,7 @@ import com.soulmachines.android.smsdk.core.async.CompletionError;
 import com.soulmachines.android.smsdk.core.scene.AudioSourceType;
 import com.soulmachines.android.smsdk.core.scene.NamedCameraAnimationParam;
 import com.soulmachines.android.smsdk.core.scene.Persona;
+import com.soulmachines.android.smsdk.core.scene.PersonaReadyListener;
 import com.soulmachines.android.smsdk.core.scene.RetryOptions;
 import com.soulmachines.android.smsdk.core.scene.Scene;
 import com.soulmachines.android.smsdk.core.scene.SceneFactory;
@@ -34,6 +35,8 @@ import com.soulmachines.android.smsdk.core.websocket_message.scene.event.Convers
 import com.soulmachines.android.smsdk.core.websocket_message.scene.event.RecognizeResultsEventBody;
 import com.soulmachines.android.smsdk.core.websocket_message.scene.event.StateEventBody;
 import com.soulmachines.smandroidjava.databinding.ActivityMainBinding;
+
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 
@@ -55,6 +58,8 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences preferences;
 
     private Scene scene = null;
+
+    private Persona persona = null;
 
     enum CameraViewDirection {
         Left,
@@ -139,13 +144,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void changeCameraView(final CameraViewDirection direction) {
-        if(scene != null) {
-            if(!scene.getPersonas().isEmpty()) {
-                Persona persona = scene.getPersonas().get(0);
-                showToastMessage("Changing camera view to the " + direction.toString());
-                Log.i(TAG, "CameraView: " + direction.toString());
-                persona.animateToNamedCameraWithOrbitPan(getNamedCameraAnimationParam(direction));
-            }
+        if(persona != null) {
+            showToastMessage("Changing camera view to the " + direction.toString());
+            Log.i(TAG, "CameraView: " + direction.toString());
+            persona.animateToNamedCameraWithOrbitPan(getNamedCameraAnimationParam(direction));
         }
     }
 
@@ -217,6 +219,10 @@ public class MainActivity extends AppCompatActivity {
 //                super.onRecognizeResultsMessage(sceneEventMessage);
 //            }
 //        });
+
+        scene.addPersonaReadyListener(p -> {
+            persona = p;
+        });
 
         resetViewUI();
 
