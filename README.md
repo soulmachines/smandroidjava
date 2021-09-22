@@ -30,7 +30,7 @@ Add the following dependencies to the `app/build.gradle`
 
 ```
  dependencies {        
-	 implementation 'com.soulmachines.android:smsdk-core:1.0.3'    
+	 implementation 'com.soulmachines.android:smsdk-core:1.1.0'
 }
 ```
 
@@ -47,7 +47,7 @@ configuration. This is used by the `getSmSdkDocumentation` task to extract the s
 
 ```
  dependencies {
-	 documentation 'com.soulmachines.android:smsdk-core:1.0.3:docs@zip'
+	 documentation 'com.soulmachines.android:smsdk-core:1.1.0:docs@zip'
 }
 ```
 
