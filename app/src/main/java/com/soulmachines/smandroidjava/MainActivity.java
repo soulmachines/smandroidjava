@@ -4,18 +4,24 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Resources;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.util.TypedValue;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.RelativeLayout;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.databinding.DataBindingUtil;
 
 import com.soulmachines.android.smsdk.core.SessionInfo;
@@ -23,9 +29,9 @@ import com.soulmachines.android.smsdk.core.UserMedia;
 import com.soulmachines.android.smsdk.core.async.Completion;
 import com.soulmachines.android.smsdk.core.async.CompletionError;
 import com.soulmachines.android.smsdk.core.scene.AudioSourceType;
+import com.soulmachines.android.smsdk.core.scene.FeatureFlags;
 import com.soulmachines.android.smsdk.core.scene.NamedCameraAnimationParam;
 import com.soulmachines.android.smsdk.core.scene.Persona;
-import com.soulmachines.android.smsdk.core.scene.PersonaReadyListener;
 import com.soulmachines.android.smsdk.core.scene.RetryOptions;
 import com.soulmachines.android.smsdk.core.scene.Scene;
 import com.soulmachines.android.smsdk.core.scene.SceneFactory;
@@ -35,10 +41,11 @@ import com.soulmachines.android.smsdk.core.websocket_message.scene.event.Convers
 import com.soulmachines.android.smsdk.core.websocket_message.scene.event.RecognizeResultsEventBody;
 import com.soulmachines.android.smsdk.core.websocket_message.scene.event.StateEventBody;
 import com.soulmachines.smandroidjava.databinding.ActivityMainBinding;
-
-import org.jetbrains.annotations.NotNull;
+import com.soulmachines.android.smsdk.core.scene.Content;
+import com.soulmachines.android.smsdk.core.scene.Rect;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 import kotlin.Unit;
 
@@ -60,6 +67,10 @@ public class MainActivity extends AppCompatActivity {
     private Scene scene = null;
 
     private Persona persona = null;
+
+    private boolean showContentClicked = false;
+
+    private static Random ran = new Random();
 
     enum CameraViewDirection {
         Left,
@@ -184,6 +195,8 @@ public class MainActivity extends AppCompatActivity {
 
         binding.disconnectButton.setOnClickListener(v -> disconnect());
 
+        binding.showContentButton.setOnClickListener(v -> toggleContent());
+
         scene = SceneFactory.create(this, UserMedia.MicrophoneAndCamera);
         scene.setViews(binding.fullscreenPersonaView, binding.pipLocalVideoView);
 
@@ -228,8 +241,15 @@ public class MainActivity extends AppCompatActivity {
 
         setupMicButton();
 
-        setupChangeCameraViewButtons();
-
+        // Determine if the SDK is controlling the camera. If this is true then we disable camera controlling buttons
+        boolean isCameraControlledBySDK = scene.getFeatures().isFeatureEnabled(FeatureFlags.UI_SDK_CAMERA_CONTROL);
+        if (isCameraControlledBySDK) {
+            binding.lookToTheLeftButton.setEnabled(false);
+            binding.lookToTheRightButton.setEnabled(false);
+            binding.lookToTheCenterButton.setEnabled(false);
+        } else {
+            setupChangeCameraViewButtons();
+        }
     }
 
     private void openSettingsPage() {
@@ -310,6 +330,18 @@ public class MainActivity extends AppCompatActivity {
             scene.disconnect();
         }
     }
+
+    private void toggleContent() {
+        showContentClicked = !showContentClicked;
+        binding.contentView.setVisibility(View.GONE);
+        if (!showContentClicked) {
+            scene.getContentAwareness().removeAllContent();
+            scene.getContentAwareness().syncContentAwareness();
+        }
+
+        binding.showContentButton.setImageResource(showContentClicked ? R.drawable.ic_nocontent : R.drawable.ic_content);
+    }
+
     //endregion Scene Connection Usage Example
 
     // region Go Fullscreen
@@ -395,13 +427,17 @@ public class MainActivity extends AppCompatActivity {
         binding.disconnectButtonContainer.setVisibility(View.GONE);
         binding.disconnectButton.setEnabled(true);
 
-
         binding.settingsButton.setVisibility(View.VISIBLE);
         binding.settingsButton.setEnabled(true);
+
+        binding.showContentButton.setVisibility(View.GONE);
+        binding.showContentButton.setEnabled(false);
 
         binding.microphone.hide();
 
         binding.cameraViewsContainer.setVisibility(View.INVISIBLE);
+
+        binding.contentView.setVisibility(View.GONE);
     }
 
     private void onDisconnectingUI() {
@@ -431,6 +467,13 @@ public class MainActivity extends AppCompatActivity {
 
         binding.settingsButton.setVisibility(View.GONE);
 
+        // Determine if Content Awareness is supported. See the Content Awareness section for more information on Content Awareness.
+        boolean isContentAwarenessSupported = scene.getFeatures().isFeatureEnabled(FeatureFlags.UI_CONTENT_AWARENESS);
+        if (isContentAwarenessSupported) {
+            binding.showContentButton.setVisibility(View.VISIBLE);
+            binding.showContentButton.setEnabled(true);
+        }
+
         binding.microphone.show();
 
         binding.cameraViewsContainer.setVisibility(View.VISIBLE);
@@ -452,6 +495,42 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
     }
 
-    //endregion UI Behaviour
+    private int PixelToDip(int pixel) {
+        Resources r = getResources();
+        return (int)TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_PX, pixel, r.getDisplayMetrics());
+    }
 
+    private void showContentView(int rawX, int rawY, int randomW, int randomH) {
+        binding.contentView.setVisibility(View.VISIBLE);
+        binding.contentView.setBackgroundColor(Color.RED);
+
+        RelativeLayout.LayoutParams params = new RelativeLayout.LayoutParams(randomW, randomH);
+        params.leftMargin = PixelToDip(rawX - (randomW/2));
+        params.topMargin = PixelToDip(rawY - (randomH/2));
+        binding.contentView.setLayoutParams(params);
+        binding.contentView.setWidth(PixelToDip(randomW));
+        binding.contentView.setHeight(PixelToDip(randomH));
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent e) {
+        switch (e.getAction()) {
+            case MotionEvent.ACTION_UP:
+                if (showContentClicked) {
+                    int randomW = Math.max(100, ran.nextInt(200));
+                    int randomH = Math.max(100, ran.nextInt(200));
+
+                    showContentView((int)e.getRawX(), (int)e.getRawY(), randomW, randomH);
+
+                    Rect bounds = new Rect((int)e.getRawX(), (int)e.getRawY(),(int)e.getRawX()+randomW,(int)e.getRawY()+randomH);
+                    Content content = new ContentImpl(bounds);
+                    scene.getContentAwareness().addContent(content);
+                    scene.getContentAwareness().syncContentAwareness();
+                }
+                break;
+        }
+        return super.onTouchEvent(e);
+    }
+
+    //endregion UI Behaviour
 }
