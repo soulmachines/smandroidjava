@@ -227,8 +227,6 @@ boolean isContentAwarenessSupported = scene.getFeatures().isFeatureEnabled(Featu
 
 If the `Persona` has the Content Awareness `FeatureFlag`  enabled in DDNA Studio, classes inheriting from `Content` can be added to the `Scene.getContentAwareness()`. When executing `ContentAwareness.syncContentAwareness()`, these coordinates will be sent to the `Persona`, and it will glance or move out of the way of content as appropriate. 
 
-The SDK will automatically call `ContentAwareness.syncContentAwareness()` on orientation change.
-
 To add a `Content` item to the `ContentAwareness`, call `Scene.getContentAwareness().addContent(content: Content)`. Content can be removed either by reference or by its String id.
 
 Example:
