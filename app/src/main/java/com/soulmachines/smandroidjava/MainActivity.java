@@ -1,14 +1,21 @@
 package com.soulmachines.smandroidjava;
 
+import static com.soulmachines.android.smsdk.core.UserMedia.MicrophoneAndCamera;
+import static java.lang.Math.abs;
+
+import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Resources;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
+import android.provider.Settings;
+import android.text.Html;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.MotionEvent;
@@ -21,7 +28,8 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.databinding.DataBindingUtil;
 
 import com.soulmachines.android.smsdk.core.SessionInfo;
@@ -29,9 +37,11 @@ import com.soulmachines.android.smsdk.core.UserMedia;
 import com.soulmachines.android.smsdk.core.async.Completion;
 import com.soulmachines.android.smsdk.core.async.CompletionError;
 import com.soulmachines.android.smsdk.core.scene.AudioSourceType;
+import com.soulmachines.android.smsdk.core.scene.Content;
 import com.soulmachines.android.smsdk.core.scene.FeatureFlags;
 import com.soulmachines.android.smsdk.core.scene.NamedCameraAnimationParam;
 import com.soulmachines.android.smsdk.core.scene.Persona;
+import com.soulmachines.android.smsdk.core.scene.Rect;
 import com.soulmachines.android.smsdk.core.scene.RetryOptions;
 import com.soulmachines.android.smsdk.core.scene.Scene;
 import com.soulmachines.android.smsdk.core.scene.SceneFactory;
@@ -41,22 +51,20 @@ import com.soulmachines.android.smsdk.core.websocket_message.scene.event.Convers
 import com.soulmachines.android.smsdk.core.websocket_message.scene.event.RecognizeResultsEventBody;
 import com.soulmachines.android.smsdk.core.websocket_message.scene.event.StateEventBody;
 import com.soulmachines.smandroidjava.databinding.ActivityMainBinding;
-import com.soulmachines.android.smsdk.core.scene.Content;
-import com.soulmachines.android.smsdk.core.scene.Rect;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 
 import kotlin.Unit;
-
-import static java.lang.Math.abs;
 
 
 public class MainActivity extends AppCompatActivity {
 
     private static String TAG = "MainActivity";
 
-    private static int PERMISSIONS_REQUEST = 2;
+    private static String PERMISSION_DONT_ASK_AGAIN_FLAG = "PERMISSION_DONT_ASK_AGAIN_FLAG";
+    private static int PERMISSION_REQUEST_UPDATE_USER_MEDIA = 101;
 
     private boolean micEnabled = true;
 
@@ -70,6 +78,8 @@ public class MainActivity extends AppCompatActivity {
 
     private boolean showContentClicked = false;
 
+    private boolean continueAndDontAskPermissionAgain = false;
+
     private static Random ran = new Random();
 
     enum CameraViewDirection {
@@ -78,16 +88,12 @@ public class MainActivity extends AppCompatActivity {
         Right
     }
 
+    private UserMedia userMedia = UserMedia.None;
+    private UserMedia requestedUserMedia = UserMedia.None;
 
-    //region SpeechRecognizer Usage Example (Mute Button Implementation)
+    //region SpeechRecognizer Usage Example (Mute Button Implementation using SpeechRecognizer - requires MICROPHONE Permission)
 
-    private void setupMicButton() {
-        binding.microphone.setOnClickListener(v -> toggleMic());
-        binding.microphone.setSelected(micEnabled);
-
-    }
-
-    private void toggleMic() {
+    private void toggleMicUsingSpeechRecognizer() {
         boolean shouldEnableMic = !micEnabled;
 
         if(scene != null && scene.getSpeechRecognizer() != null) {
@@ -100,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
                         Log.i(TAG, "SpeechRecognition ON ");
                         runOnUiThread(() -> {
                             micEnabled = true;
-                            binding.microphone.setSelected(true);
+                            binding.microphoneToggle.setSelected(true);
                         });
                     }
 
@@ -123,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
                         Log.i(TAG, "SpeechRecognition OFF ");
                         runOnUiThread(() -> {
                             micEnabled = false;
-                            binding.microphone.setSelected(false);
+                            binding.microphoneToggle.setSelected(false);
                         });
                     }
                 });
@@ -142,7 +148,7 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    //endregion SpeechRecognizer Usage Example (Mute Button Implementation)
+    //endregion SpeechRecognizer Usage Example (Mute Button Implementation using SpeechRecognizer - requires MICROPHONE Permission)
 
     //region Scene Usage Example (Change Camera View)
 
@@ -176,12 +182,12 @@ public class MainActivity extends AppCompatActivity {
 
     //endregion Scene Usage Example (Change Camera View)
 
-
-
     //region Setup Activity UI
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        continueAndDontAskPermissionAgain = savedInstanceState != null ? savedInstanceState.getBoolean(PERMISSION_DONT_ASK_AGAIN_FLAG) : false;
 
         preferences = PreferenceManager.getDefaultSharedPreferences(this);
 
@@ -189,7 +195,7 @@ public class MainActivity extends AppCompatActivity {
         goFullScreen();
 
         binding = DataBindingUtil.setContentView(this, R.layout.activity_main);
-        binding.connectButton.setOnClickListener(v -> connectRequestingPermissionsIfNeeded());
+        binding.connectButton.setOnClickListener(v -> connect());
 
         binding.settingsButton.setOnClickListener(v -> openSettingsPage());
 
@@ -197,7 +203,7 @@ public class MainActivity extends AppCompatActivity {
 
         binding.showContentButton.setOnClickListener(v -> toggleContent());
 
-        scene = SceneFactory.create(this, UserMedia.MicrophoneAndCamera);
+        scene = SceneFactory.create(this, userMedia);
         scene.setViews(binding.fullscreenPersonaView, binding.pipLocalVideoView);
 
         scene.addDisconnectedEventListener(reason -> runOnUiThread(() -> onDisconnectedUI(reason)));
@@ -239,7 +245,7 @@ public class MainActivity extends AppCompatActivity {
 
         resetViewUI();
 
-        setupMicButton();
+        setupVideoMicToggleButtons();
 
         // Determine if the SDK is controlling the camera. If this is true then we disable camera controlling buttons
         boolean isCameraControlledBySDK = scene.getFeatures().isFeatureEnabled(FeatureFlags.UI_SDK_CAMERA_CONTROL);
@@ -259,6 +265,17 @@ public class MainActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
+    @Override
+    protected void onRestoreInstanceState(@NonNull Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        continueAndDontAskPermissionAgain = savedInstanceState.getBoolean(PERMISSION_DONT_ASK_AGAIN_FLAG);
+    }
+
+    @Override
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putBoolean(PERMISSION_DONT_ASK_AGAIN_FLAG, continueAndDontAskPermissionAgain);
+    }
 
     //endregion Setup Activity UI
 
@@ -344,6 +361,55 @@ public class MainActivity extends AppCompatActivity {
 
     //endregion Scene Connection Usage Example
 
+    //region Video/Audio Toggle Example
+
+    private void setupVideoMicToggleButtons() {
+        //toggle the state
+        binding.microphoneToggle.setOnClickListener(it -> {
+            binding.microphoneToggle.setSelected(!binding.microphoneToggle.isSelected());
+            //fire the change event
+            videoAudioActiveChanged();
+        });
+
+        binding.videoToggle.setOnClickListener(it -> {
+            binding.videoToggle.setSelected(!binding.videoToggle.isSelected());
+            //fire the change event
+            videoAudioActiveChanged();
+        });
+
+    }
+
+    private void videoAudioActiveChanged() {
+        final boolean isMicEnabled = binding.microphoneToggle.isSelected();
+        final boolean isVideoEnabled = binding.videoToggle.isSelected();
+
+        final UserMedia requestedUserMedia;
+        if(isMicEnabled && isVideoEnabled) {
+            requestedUserMedia = MicrophoneAndCamera;
+        } else if(!isMicEnabled && isVideoEnabled) {
+            requestedUserMedia = UserMedia.Camera;
+        } else if(isMicEnabled && !isVideoEnabled) {
+            requestedUserMedia = UserMedia.Microphone;
+        } else {
+            requestedUserMedia = UserMedia.None;
+        }
+        updateUserMediaWithPermission(requestedUserMedia);
+
+    }
+
+    private void onPermissionGrantedUpdateUserMedia() {
+        Log.d(TAG, "Applying UserMedia:" + userMedia);
+        if(scene != null) {
+            scene.updateUserMedia(this.userMedia);
+        }
+        //ensure state of buttons and views are in sync with active userMedia
+        binding.microphoneToggle.setSelected(this.userMedia.getHasAudio());
+        binding.videoToggle.setSelected(this.userMedia.getHasVideo());
+        binding.pipLocalVideoView.setVisibility( this.userMedia.getHasVideo() ? View.VISIBLE : View.GONE);
+    }
+
+    //endregion Video/Audio Toggle Example
+    
     // region Go Fullscreen
     private void goFullScreen() {
         // Set window styles for fullscreen-window size. Needs to be done before
@@ -359,37 +425,145 @@ public class MainActivity extends AppCompatActivity {
     //endregion Go Fullscreen
 
     //region Setup Permissions
-    private void onPermissionsGranted() {
-        connect();
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == PERMISSIONS_REQUEST) {
-            String[]missingPermissions = getMissingPermissions();
-            if (missingPermissions.length > 0) {
-                // User didn't grant all the permissions. Warn that the application might not work
-                // correctly.
-                new AlertDialog.Builder(this).setMessage(R.string.missing_permissions_message)
-                        .setPositiveButton(R.string.close, (dialog, which) -> {
-                            dialog.cancel();
-                        })
-                        .show();
-            } else {
-                // All permissions granted.
-                onPermissionsGranted();
+    private void updateUserMediaWithPermission(UserMedia requestedUserMedia) {
+        this.requestedUserMedia = requestedUserMedia;
+        switch (requestedUserMedia) {
+             case MicrophoneAndCamera : {
+                 requestPermissionIfNeededForCameraAndMic();
+                 break;
+             }
+            case Camera : {
+                requestPermissionIfNeededFor(Manifest.permission.CAMERA);
+                break;
+            }
+            case Microphone : {
+                requestPermissionIfNeededFor(Manifest.permission.RECORD_AUDIO);
+                break;
+            }
+            default : {
+                applyAllowedUserMedia();
+                break;
             }
         }
     }
 
-    private void connectRequestingPermissionsIfNeeded() {
-        final String[] missingPermissions = getMissingPermissions();
-        if (missingPermissions != null && missingPermissions.length > 0) {
-            requestPermissions(missingPermissions, PERMISSIONS_REQUEST);
+    private void applyAllowedUserMedia() {
+        this.userMedia = requestUserMedia(this.requestedUserMedia);
+        onPermissionGrantedUpdateUserMedia();
+    }
+
+    private void requestPermissionIfNeededForCameraAndMic() {
+
+        final String[] permissionsRequired = new String[]{Manifest.permission.RECORD_AUDIO, Manifest.permission.CAMERA};
+
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.RECORD_AUDIO) + ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            boolean shouldShowRecordAudioPermission = ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO);
+            boolean shouldShowCameraPermission = ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA);
+            if (shouldShowRecordAudioPermission || shouldShowCameraPermission) {
+                //if we have to show the permissions screen then we have to override this flag
+                // so it is skipped
+                continueAndDontAskPermissionAgain = false;
+                showExplanation("Permission Required", "You need to enable permissions.", permissionsRequired, PERMISSION_REQUEST_UPDATE_USER_MEDIA);
+            } else {
+                requestPermissions(permissionsRequired, PERMISSION_REQUEST_UPDATE_USER_MEDIA);
+            }
         } else {
-            onPermissionsGranted();
+            applyAllowedUserMedia();
+        }
+    }
+
+    private void requestPermissionIfNeededFor(String permissionRequired) {
+        if (ContextCompat.checkSelfPermission(this, permissionRequired) != PackageManager.PERMISSION_GRANTED) {
+            boolean shouldShowPermission = ActivityCompat.shouldShowRequestPermissionRationale(this, permissionRequired);
+            if (shouldShowPermission) {
+                //if we have to show the permissions screen then we have to override this flag
+                // so it is skipped
+                continueAndDontAskPermissionAgain = false;
+                showExplanation("Permission Required", "You need to enable permissions.", new String[]{permissionRequired}, PERMISSION_REQUEST_UPDATE_USER_MEDIA);
+            } else {
+                requestPermissions(new String[]{permissionRequired}, PERMISSION_REQUEST_UPDATE_USER_MEDIA);
+            }
+        } else {
+            applyAllowedUserMedia();
+        }
+    }
+
+    private UserMedia requestUserMedia(UserMedia newUserMedia) {
+        //none allowed by default
+        if(newUserMedia == UserMedia.None) return newUserMedia;
+        //check for the permissions and request if necessary
+        final String[] missingPermissions = getMissingPermissions();
+        boolean allowAudio = !Arrays.stream(missingPermissions).anyMatch("android.permission.RECORD_AUDIO"::equals);
+        boolean allowVideo = !Arrays.stream(missingPermissions).anyMatch("android.permission.CAMERA"::equals);
+
+        //if the usermedia matches the allowed flags or if everything is granted, then return the requested userMedia
+        //otherwise just return the original value
+        if((allowAudio && allowVideo) || (newUserMedia.getHasAudio() == allowAudio && newUserMedia.getHasVideo() == allowVideo)) {
+            return newUserMedia;
+        }
+        return this.userMedia;
+    }
+
+    private void showExplanation(String title,
+                                 String message,
+                                String[] permissions,
+                                int permissionRequestCode) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(title)
+                .setMessage(message)
+                .setPositiveButton(android.R.string.ok, (dialog, which) -> {
+                    requestPermissions(permissions, permissionRequestCode);
+                });
+        builder.create().show();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if(requestCode == PERMISSION_REQUEST_UPDATE_USER_MEDIA) {
+            UserMedia applicableUserMedia = requestUserMedia(this.requestedUserMedia);
+            if(this.requestedUserMedia == applicableUserMedia) {
+                this.userMedia = applicableUserMedia;
+                onPermissionGrantedUpdateUserMedia();
+            } else {
+                if(continueAndDontAskPermissionAgain) {
+                    this.userMedia = applicableUserMedia;
+                    onPermissionGrantedUpdateUserMedia();
+                } else {
+                    //display an alert saying some permissions are not enabled and if they wish to continue
+                    new AlertDialog.Builder(this)
+                            .setCancelable(false)
+                            .setTitle("Missing Permissions")
+                            //.setMessage(Html.fromHtml(getString(R.string.permissions_settings_message, applicableUserMedia), Html.FROM_HTML_SEPARATOR_LINE_BREAK_PARAGRAPH))
+                            .setMessage(Html.fromHtml(getString(R.string.permissions_settings_message, this.requestedUserMedia, applicableUserMedia), Html.FROM_HTML_MODE_LEGACY))
+                            .setPositiveButton(R.string.yes, (dialog1, which) -> {
+                                dialog1.cancel();
+                                continueAndDontAskPermissionAgain = false;
+                                this.userMedia = applicableUserMedia;
+                                onPermissionGrantedUpdateUserMedia();
+                            })
+                            .setNegativeButton(R.string.permissions_setting, (dialog2, which) -> {
+                            // User doesn't want to give the permissions.
+                                this.userMedia = applicableUserMedia;
+                                onPermissionGrantedUpdateUserMedia();
+                                dialog2.cancel();
+                                continueAndDontAskPermissionAgain = false;
+                                Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                                Uri uri = Uri.fromParts("package", getPackageName(), null);
+                                intent.setData(uri);
+                                startActivity(intent);
+                            })
+                            .setNeutralButton(R.string.permissions_setting_continue, (dialogneutral, which) -> {
+                                dialogneutral.cancel();
+                                continueAndDontAskPermissionAgain = true;
+                                this.userMedia = applicableUserMedia;
+                                onPermissionGrantedUpdateUserMedia();
+                            }).show();
+                }
+            }
         }
     }
 
@@ -433,7 +607,8 @@ public class MainActivity extends AppCompatActivity {
         binding.showContentButton.setVisibility(View.GONE);
         binding.showContentButton.setEnabled(false);
 
-        binding.microphone.hide();
+        binding.microphoneToggle.setVisibility(View.GONE);
+        binding.videoToggle.setVisibility(View.GONE);
 
         binding.cameraViewsContainer.setVisibility(View.INVISIBLE);
 
@@ -443,7 +618,8 @@ public class MainActivity extends AppCompatActivity {
     private void onDisconnectingUI() {
         binding.disconnectButtonContainer.setVisibility(View.VISIBLE);
         binding.disconnectButton.setEnabled( false);
-        binding.microphone.hide();
+        binding.microphoneToggle.setVisibility(View.GONE);
+        binding.videoToggle.setVisibility(View.GONE);
     }
 
     private void onDisconnectedUI(String reason) {
@@ -474,7 +650,8 @@ public class MainActivity extends AppCompatActivity {
             binding.showContentButton.setEnabled(true);
         }
 
-        binding.microphone.show();
+        binding.microphoneToggle.setVisibility(View.VISIBLE);
+        binding.videoToggle.setVisibility(View.VISIBLE);
 
         binding.cameraViewsContainer.setVisibility(View.VISIBLE);
     }
