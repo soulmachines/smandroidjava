@@ -1,3 +1,5 @@
+// Copyright 2022 Soul Machines Ltd
+
 package com.soulmachines.smandroidjava;
 
 import android.os.Bundle;
