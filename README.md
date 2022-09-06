@@ -30,7 +30,7 @@ Add the following dependencies to the `app/build.gradle`
 
 ```
  dependencies {        
-	 implementation 'com.soulmachines.android:smsdk-core:1.1.0'
+	 implementation 'com.soulmachines.android:smsdk-core:1.3.0'
 }
 ```
 
@@ -47,7 +47,7 @@ configuration. This is used by the `getSmSdkDocumentation` task to extract the s
 
 ```
  dependencies {
-	 documentation 'com.soulmachines.android:smsdk-core:1.1.0:docs@zip'
+	 documentation 'com.soulmachines.android:smsdk-core:1.3.0:docs@zip'
 }
 ```
 
@@ -136,7 +136,7 @@ The SDK supports two connection methods: connecting with an API Key generated th
 
 Establish a connection by providing the API Key generated within DDNA Studio. Provide optional `userText` to send a message to the Orchestration server during connection, and a `RetryOptions` object specifying the number of connection attempts and the delay between attempting a connection, should the connection encounter an error.
 ```
-scene.connect(apiKey, null, RetryOptions.getDEFAULT())
+scene.connect("DDNA_STUDIO_GENERATED_API_KEY", null, RetryOptions.getDEFAULT())
 ```
 
 ### Connecting using a valid web-socket URL and a valid JWT.
