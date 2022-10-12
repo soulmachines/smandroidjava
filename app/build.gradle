@@ -28,6 +28,7 @@ android {
     buildFeatures {
         dataBinding true
     }
+    namespace 'com.soulmachines.smandroidjava'
 }
 
 repositories {
@@ -42,16 +43,17 @@ configurations {
 }
 
 ext {
-    constraintlayout = '2.1.3'
-    googleMaterialUILib = '1.5.0'
+    constraintlayout = '2.1.4'
+    googleMaterialUILib = '1.6.1'
     jjwtVersion = "0.11.2"
     androidXPreference = '1.2.0'
     coreKtxVersion = "1.3.2"
-    appCompatVersion = '1.4.1'
+    appCompatVersion = '1.5.1'
     androidXLegacySupport = "legacy-support-v4:1.0.0"
-    androidXFragmentVersion = '1.4.1'
-    androidXSavedStateVersion = '1.2.0-alpha01'
-    kotlin_version = "1.4.10"
+    androidXFragmentVersion = '1.5.3'
+    androidXSavedStateVersion = '1.2.0'
+    androidXLifecycleVersion = '2.5.1'
+    kotlin_version = "1.7.20"
 }
 
 dependencies {
@@ -59,6 +61,7 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$appCompatVersion"
     implementation "androidx.legacy:$androidXLegacySupport"
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$androidXLifecycleVersion"
 
     //https://github.com/jwtk/jjwt
     //used for the self signed JWT Token example
@@ -81,7 +84,7 @@ dependencies {
     // dependency for the Soul Machine's Core SDK Documentation.
     // The documentation (smsdk-core/index.html)
     // can be extracted using the gradle task shown below: [getSmSdkDocumentation].
-    documentation 'com.soulmachines.android:smsdk-core:1.2.0:docs@zip'
+    documentation 'com.soulmachines.android:smsdk-core:1.3.0-SNAPSHOT:docs@zip'
 
 }
 
