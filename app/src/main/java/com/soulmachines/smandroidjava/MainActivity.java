@@ -291,44 +291,69 @@ public class MainActivity extends AppCompatActivity {
 
         onConnectingUI();
 
-        // Obtain a JWT token and then connect the Scene
-        new JWTTokenProvider(this).getJWTToken(
-                (JWTSource.OnSuccess) jwtToken -> {
-                    String connectionUrl = preferences.getString(ConfigurationFragment.CONNECTION_URL, "");
-                    Log.i(TAG, "Connecting to:  `" + connectionUrl + "`");
-                    Log.d(TAG, "Using JWT Token `" + jwtToken + "`");
-                    //using the obtained JWT token, proceed with connecting the Scene
-                    connectScene(connectionUrl, jwtToken);
+        final boolean useProvidedConnection = preferences.getBoolean(ConfigurationFragment.USE_PROVIDED_CONNECTION, false);
+        if(useProvidedConnection) {
+            // Obtain a JWT token and then connect the Scene
+            new JWTTokenProvider(this).getJWTToken(
+                    (JWTSource.OnSuccess) jwtToken -> {
+                        String connectionUrl = preferences.getString(ConfigurationFragment.CONNECTION_URL, "");
+                        Log.i(TAG, "Connecting to:  `" + connectionUrl + "`");
+                        Log.d(TAG, "Using JWT Token `" + jwtToken + "`");
+                        //using the obtained JWT token, proceed with connecting the Scene
+                        connectScene(null, connectionUrl, jwtToken);
 
-                }, (JWTSource.OnError) errorMessage -> {
-                    Log.e(TAG, errorMessage);
-                    displayAlertAndResetUI(
-                            getString(R.string.connection_error),
-                            getString(R.string.connection_jwt_error_message)
-                    );
-                });
+                    }, (JWTSource.OnError) errorMessage -> {
+                        Log.e(TAG, errorMessage);
+                        displayAlertAndResetUI(
+                                getString(R.string.connection_error),
+                                getString(R.string.connection_jwt_error_message)
+                        );
+                    });
+        } else {
+            //use the API Key
+            final String apiKey = preferences.getString(ConfigurationFragment.API_KEY, "");
+            connectScene(apiKey, null, null);
+        }
+
+
     }
 
-    private void connectScene(final String connectionUrl, final String jwtToken) {
+    private void connectScene(final String apiKey, final String connectionUrl, final String jwtToken) {
         if(scene != null) {
-            scene.connect(connectionUrl, null, jwtToken, RetryOptions.getDEFAULT()).subscribe(
-                new Completion<SessionInfo>() {
-                    @Override
-                    public void onSuccess(SessionInfo sessionInfo) {
-                        runOnUiThread(() -> onConnectedUI());
-                    }
-                    @Override
-                    public void onError(CompletionError completionError) {
-                        runOnUiThread(() -> {
-                            displayAlertAndResetUI(getString(R.string.connection_error), completionError.getMessage());
-                        });
-                    }
-            });
+            Completion<SessionInfo> afterConnect = new Completion<SessionInfo>() {
+                @Override
+                public void onSuccess(SessionInfo sessionInfo) {
+                    runOnUiThread(() -> onConnectedUI());
+                }
+
+                @Override
+                public void onError(CompletionError completionError) {
+                    runOnUiThread(() -> {
+                        displayAlertAndResetUI(getString(R.string.connection_error), completionError.getMessage());
+                    });
+                }
+            };
+
+            if(apiKey != null) {
+                scene.connect(apiKey, null, RetryOptions.getDEFAULT()).subscribe(afterConnect);
+            }
+
+            if(connectionUrl != null) {
+                scene.connect(connectionUrl, null, jwtToken, RetryOptions.getDEFAULT()).subscribe(afterConnect);
+            }
         }
     }
 
 
     private Boolean hasRequiredConfiguration() {
+        final boolean useProvidedConnection = preferences.getBoolean(ConfigurationFragment.USE_PROVIDED_CONNECTION, false);
+        if(!useProvidedConnection) {
+            //valid if we have a value for the API Key
+            final String apiKey = preferences.getString(ConfigurationFragment.API_KEY, null);
+            return isNotNullAndNotEmpty(apiKey);
+        }
+
+        //fallback, check the provided connection if present
         Boolean useExistingToken = preferences.getBoolean(ConfigurationFragment.USE_EXISTING_JWT_TOKEN, false);
         String url = preferences.getString(ConfigurationFragment.CONNECTION_URL, null);
         String keyName = preferences.getString(ConfigurationFragment.KEY_NAME, null);

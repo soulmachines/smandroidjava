@@ -28,6 +28,8 @@ public class ConfigurationFragment extends PreferenceFragmentCompat implements S
     public static final String JWT_TOKEN = "connectionConfigJWT";
     public static final String ORCHESTRATION_SERVER_URL = "orchestrationServerURL";
     public static final String USE_ORCHESTRATION_SERVER = "useOrchestrationServer";
+    public static final String USE_PROVIDED_CONNECTION = "useProvidedConnectionConfig";
+    public static final String API_KEY = "connectionConfigApiKey";
 
     private SettingsActivity activity;
     private SharedPreferences sharedPreferences;
@@ -36,6 +38,10 @@ public class ConfigurationFragment extends PreferenceFragmentCompat implements S
 
     private List<Preference> selfSignedStrategyRelatedPrefs = new ArrayList<>();
     private Set<String> selfSignedStrategyRelatedPrefsKeys = new HashSet<>();
+
+    private List<Preference> providedConnectionRelatedPrefs = new ArrayList<>();
+    private Set<String> providedConnectionRelatedPrefsKeys = Collections.singleton("providedConnection");
+    private Preference apiKeyPref = null;
 
     public ConfigurationFragment(SettingsActivity activity) {
         super();
@@ -109,19 +115,37 @@ public class ConfigurationFragment extends PreferenceFragmentCompat implements S
                     existingSummary.put(preferenceEntry.getKey(), preferenceEntry.getSummary().toString());
                 }
 
+                if(providedConnectionRelatedPrefsKeys.contains(preferenceEntry.getKey())) {
+                    providedConnectionRelatedPrefs.add(preferenceEntry);
+                }
+
+                if(API_KEY.equals(preferenceEntry.getKey())) {
+                    apiKeyPref = preferenceEntry;
+                }
+
                 if(preferenceEntry.getKey().equals(USE_EXISTING_JWT_TOKEN)) {
                     ((SwitchPreferenceCompat) preferenceEntry ).setOnPreferenceChangeListener((preference1, newValue) -> {
-                        changeStateOfSelfSignedRelatedProperties(!((Boolean) newValue));
+                        changeStateOfSelfSignedRelatedProperties(((Boolean) newValue));
                         return true;
                     });
+                }
 
+                if(preferenceEntry.getKey().equals(USE_PROVIDED_CONNECTION)) {
+                    ((SwitchPreferenceCompat) preferenceEntry ).setOnPreferenceChangeListener((preference1, newValue) -> {
+                        changeStateOfProvidedConnectionRelatedProperties(((Boolean) newValue));
+                        return true;
+                    });
                 }
             }
         }
 
         //set initial disabled state of the self gen related properties
         Preference useJWTProp = findPreference(USE_EXISTING_JWT_TOKEN);
-        changeStateOfSelfSignedRelatedProperties(!((SwitchPreferenceCompat)useJWTProp).isChecked());
+        changeStateOfSelfSignedRelatedProperties(((SwitchPreferenceCompat)useJWTProp).isChecked());
+
+        //set initial disabled state of the self gen related properties
+        Preference useProvidedConnection = findPreference(USE_PROVIDED_CONNECTION);
+        changeStateOfProvidedConnectionRelatedProperties(((SwitchPreferenceCompat)useProvidedConnection).isChecked());
 
         Preference button = getPreferenceManager().findPreference("applyChanges");
         if (button != null) {
@@ -132,9 +156,18 @@ public class ConfigurationFragment extends PreferenceFragmentCompat implements S
         }
     }
 
-    private void changeStateOfSelfSignedRelatedProperties(Boolean isEnabled) {
+    private void changeStateOfSelfSignedRelatedProperties(Boolean useJwtToken) {
         for(Preference pref : selfSignedStrategyRelatedPrefs) {
-            pref.setEnabled(isEnabled);
+            pref.setEnabled(!useJwtToken);
+        }
+    }
+
+    private void changeStateOfProvidedConnectionRelatedProperties(Boolean useProvidedConnection) {
+        for(Preference pref : selfSignedStrategyRelatedPrefs) {
+            pref.setEnabled(useProvidedConnection);
+        }
+        if(apiKeyPref != null) {
+            apiKeyPref.setEnabled(!useProvidedConnection);
         }
     }
 

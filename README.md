@@ -6,8 +6,8 @@
 This project shows how to use the Soul Machines Android SDK and pull the library into your own projects. It also shows some of the basic SDK functionality for reference.
 
 # Project Setup
- * Open/import this project in Android Studio as a gradle project.
- * Build the project and it should now download all the dependencies.
+* Open/import this project in Android Studio as a gradle project.
+* Build the project and it should now download all the dependencies.
 
 
 # Importing the library
@@ -30,7 +30,7 @@ Add the following dependencies to the `app/build.gradle`
 
 ```
  dependencies {        
-	 implementation 'com.soulmachines.android:smsdk-core:1.1.0'
+	 implementation 'com.soulmachines.android:smsdk-core:1.3.0'
 }
 ```
 
@@ -47,15 +47,15 @@ configuration. This is used by the `getSmSdkDocumentation` task to extract the s
 
 ```
  dependencies {
-	 documentation 'com.soulmachines.android:smsdk-core:1.1.0:docs@zip'
+	 documentation 'com.soulmachines.android:smsdk-core:1.3.0:docs@zip'
 }
 ```
 
 # Create and connect the Scene
- ## Using View Containers
+## Using View Containers
 
- * Create **android.view.ViewGroup** container views for the remote persona view (required) and the local video view (optional) on your layout xml where the Scene will be rendered  
- e.g. *activity_main.xml*
+* Create **android.view.ViewGroup** container views for the remote persona view (required) and the local video view (optional) on your layout xml where the Scene will be rendered  
+e.g. *activity_main.xml*
  ```
  <FrameLayout      
     android:id="@+id/fullscreenPersonaView"      
@@ -76,15 +76,16 @@ configuration. This is used by the `getSmSdkDocumentation` task to extract the s
     android:layout_marginTop="16dp" />      
  ```
 
- * Create a **Scene** object and specify the required **UserMedia** and then set the views on the Scene where you want to render the video feeds. The 2nd parameter (local video view) is optional and can be specified as null.
+* Create a **Scene** object and specify the required **UserMedia** and then set the views on the Scene where you want to render the video feeds. The 2nd parameter (local video view) is optional and can be specified as null.
+An example is shown below:
  ```
  scene = new SceneImpl(this, UserMedia.MicrophoneAndCamera);
  scene.setViews(binding.fullscreenPersonaView, binding.pipLocalVideoView);
  ```
 
- ## Using a Custom Layout
- * Create a custom layout xml where the Scene video feeds will be rendered. Ensure it has the following child views with the following predefined ids: ***@id/remote_video_view*** and ***@id/local_video_view*** of the type ***org.webrtc.SurfaceViewRenderer***.  
- e.g. *custom_scene_layout.xml*
+## Using a Custom Layout
+* Create a custom layout xml where the Scene video feeds will be rendered. Ensure it has the following child views with the following predefined ids: ***@id/remote_video_view*** and ***@id/local_video_view*** of the type ***org.webrtc.SurfaceViewRenderer***.  
+e.g. *custom_scene_layout.xml*
 
 ```
 <?xml version="1.0" encoding="utf-8"?> 
@@ -119,7 +120,7 @@ configuration. This is used by the `getSmSdkDocumentation` task to extract the s
 
 * Include this layout or embed directly to your Activity's layout. e.g. In your activity's layout file ``` <include android:id="@+id/scene" layout="@layout/custom_scene_layout"/> ```
 
- * Create a **Scene** object and specify the required **UserMedia**  
+* Create a **Scene** object and specify the required **UserMedia**  
 and then set the views on the Scene but use the instance of the custom layout you've defined.
  ```
  scene = new SceneImpl(this, UserMedia.MicrophoneAndCamera);
@@ -127,14 +128,23 @@ and then set the views on the Scene but use the instance of the custom layout yo
  ```
  *In the snippet above, it uses the same custom layout for both the remote and local video feeds, but you can specify a separate one for each as long as you use the correct predefined id for the corresponding child video view*
 
- ## Connect to a Digital Human (DH) server using a valid web-socket URL and a valid JWT token
- ```
- scene.connect(
-    url = "wss://dh.soulmachines.cloud",      
-    accessToken = "JWT_ACCESS_TOKEN");
- ```
 
- ## Connection Result  
+## Connection methods
+The SDK supports two connection methods: connecting with an API Key generated through DDNA Studio, and connecting with a web-socket URL and JWT.
+
+### Connecting using an API Key.
+
+Establish a connection by providing the API Key generated within DDNA Studio. Provide optional `userText` to send a message to the Orchestration server during connection, and a `RetryOptions` object specifying the number of connection attempts and the delay between attempting a connection, should the connection encounter an error.
+```
+scene.connect("DDNA_STUDIO_GENERATED_API_KEY", null, RetryOptions.getDEFAULT())
+```
+
+### Connecting using a valid web-socket URL and a valid JWT.
+```
+scene.connect("wss://dh.soulmachines.cloud", null, "JWT_ACCESS_TOKEN", RetryOptions.getDEFAULT());
+```
+
+## Connection Result  
 On the provided API (e.g. **Scene** and **Persona**), all the asynchronous method calls provide a way such that you can subscribe to the result (whether it was successful or resulted in an error). These methods will return a **Completable/Cancellable** result from which you can subscribe to the result by passing in a **Completion** callback. This interface accepts a generic type parameter that determines the type of the response for a successful result.
 
 Here's an example of a subscription to the scene connection result:
@@ -165,7 +175,7 @@ scene.addDisconnectedEventListener(reason -> runOnUiThread(() -> onDisconnectedU
 ```
 
 
- # Scene Messages
+# Scene Messages
 One way to interact with a *Digital Human* is achieved through *Scene Messaging*. This part of the **Scene#addSceneMessageListener** api allows you to register a listener for when these Scene messages are received. To register a message listener, create an instance of a **com.soulmachines.android.smsdk.core.scene.message.SceneMessageListener** or alternatively an instance of the adaptor class **com.soulmachines.android.smsdk.core.scene.message.SceneMessageListenerAdaptor** and only override the specific *Scene Message* you are interested with.
 Here is an example using the SceneMessageListener:
 ```
